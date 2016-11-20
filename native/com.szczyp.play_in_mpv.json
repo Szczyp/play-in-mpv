@@ -1,0 +1,7 @@
+{
+  "name": "com.szczyp.play_in_mpv",
+  "description": "play in mpv",
+  "path": "play_in_mpv.bat",
+  "type": "stdio",
+  "allowed_extensions": ["{85873c09-6e78-47fd-b10d-8ac0ed005f2a}"]
+}
