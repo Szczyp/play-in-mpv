@@ -1,0 +1,7 @@
+{
+  "name": "com.szczyp.play_in_mpv",
+  "description": "play in mpv",
+  "path": "C:\\Users\\qb\\AppData\\Roaming\\local\\bin\\play_in_mpv.exe",
+  "type": "stdio",
+  "allowed_extensions": ["{85873c09-6e78-47fd-b10d-8ac0ed005f2a}"]
+}

@@ -1,0 +1,31 @@
+name:                play-in-mpv
+version:             0.1.0.0
+synopsis:            Initial project template from stack
+description:         Please see README.md
+homepage:            https://github.com/Szczyp/play-in-mpv#readme
+license:             GPL-3
+author:              Szczyp
+maintainer:          qb@szczyp.com
+copyright:           2016 Szczyp
+category:            WebExtension
+build-type:          Simple
+cabal-version:       >=1.10
+
+executable play_in_mpv
+  main-is:             Main.hs
+  ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
+  build-depends:       base
+                     , protolude
+                     , io-streams
+                     , lens-aeson
+                     , lens
+                     , text
+                     , process
+                     , transformers
+                     , errors
+  default-language:    Haskell2010
+  default-extensions:  OverloadedStrings, NoImplicitPrelude
+
+source-repository head
+  type:     git
+  location: https://github.com/Szczyp/play-in-mpv
