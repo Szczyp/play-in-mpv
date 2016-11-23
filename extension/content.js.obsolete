@@ -28,13 +28,16 @@ const urls = ["(www|m)\\.youtube\\.com/(watch|playlist)",
               "www\\.twitch\\.tv/.+/v/\\d+$",
               "clips.twitch.tv/.+/.+",
               "streamable\\.com",
+              ".*\\.streamable\\.com/video",
               "vid\\.me",
-              "www.liveleak.com/view"
+              "www.liveleak.com/view",
+              "twitter\\.com/.+/video/",
+              "www.facebook\\.com/.+/videos/"
              ]
 
 document
   .getElementsByTagName("a")
   .toArray()
-  .filter(a => new RegExp("https?:\/\/(" + urls.join("|") + ")").test(a.href))
+  .filter(a => new RegExp("https?://(" + urls.join("|") + ")").test(a.href))
   .reduce(replaceDuplicate, [])
   .forEach(addButton)

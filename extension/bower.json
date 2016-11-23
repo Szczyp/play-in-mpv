@@ -1,0 +1,17 @@
+{
+  "name": "extension",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "output"
+  ],
+  "dependencies": {
+    "purescript-console": "^2.0.0",
+    "purescript-dom": "^3.2.0",
+    "purescript-argonaut": "^2.0.0"
+  },
+  "devDependencies": {
+    "purescript-psci-support": "^2.0.0"
+  }
+}
