@@ -16,6 +16,7 @@ executable play_in_mpv
   ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base
                      , protolude
+                     , bytestring
                      , io-streams
                      , lens-aeson
                      , lens
