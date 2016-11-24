@@ -10,8 +10,10 @@ import Data.Text (unpack)
 import qualified System.IO.Streams as Streams
 import Control.Monad.Trans.Maybe
 import Control.Error.Util
+
+#if defined(mingw32_HOST_OS)
 import qualified Data.ByteString as ByteString
-import System.IO
+#endif
 
 player :: String
 player = "mpv"
@@ -22,12 +24,13 @@ defaultOptions = ["--no-terminal"
                  ]
 
 main :: IO ()
-main = do
-  bufferMode <- hGetBuffering stdin
-  run $ case bufferMode of
-          LineBuffering -> ByteString.drop 4 <$> read
-          _             -> read >> read
-    >>= play . options
+main = run $
+#if defined(mingw32_HOST_OS)
+  ByteString.drop 4 <$> read
+#else
+  read >> read
+#endif
+  >>= play . options
   where read = hoistMaybe =<< liftIO (Streams.read Streams.stdin)
         play = liftIO . callProcess player
         options = (: defaultOptions) . unpack . view (key "link" . _String)
