@@ -7,6 +7,12 @@
     "scripts": ["background.js"]
   },
 
+  "applications": {
+    "gecko": {
+      "id": "{85873c09-6e78-47fd-b10d-8ac0ed005f2a}"
+    }
+  },
+
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
