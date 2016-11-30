@@ -13,19 +13,26 @@ cabal-version:       >=1.10
 
 executable play_in_mpv
   main-is:             Main.hs
+  hs-source-dirs:      src
   ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base
-                     , protolude
+                     , attoparsec
                      , bytestring
-                     , io-streams
-                     , lens-aeson
-                     , lens
-                     , text
-                     , process
-                     , transformers
+                     , binary
                      , errors
+                     , lens
+                     , lens-aeson
+                     , process
+                     , protolude
+                     , text
+                     , transformers
+                     , yaml
+                     , pipes
+                     , pipes-parse
+                     , pipes-bytestring
+                     , pipes-text
   default-language:    Haskell2010
-  default-extensions:  OverloadedStrings, NoImplicitPrelude, CPP
+  default-extensions:  OverloadedStrings, NoImplicitPrelude
 
 source-repository head
   type:     git

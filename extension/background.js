@@ -1,2 +1,3 @@
-chrome.runtime.onMessage.addListener(
-  message => chrome.runtime.sendNativeMessage("com.szczyp.play_in_mpv", message))
+var port = browser.runtime.connectNative("com.szczyp.play_in_mpv");
+
+chrome.runtime.onMessage.addListener(message => port.postMessage(message));
