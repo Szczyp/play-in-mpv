@@ -2,20 +2,21 @@
 
 module Main where
 
-import Protolude hiding (StateT, fromStrict, for, stdin)
+import Protolude hiding (StateT, for, fromStrict, stdin)
 
-import Control.Error.Util (hoistMaybe)
-import Control.Lens (view)
+import Control.Error.Util        (hoistMaybe)
+import Control.Lens              (view)
 import Control.Monad.Trans.Maybe (MaybeT, runMaybeT)
-import Data.Aeson.Lens (key, _String)
-import Data.Binary.Get (runGet, getInt32host)
+import Data.Aeson.Lens           (key, _String)
+import Data.Binary.Get           (getInt32host, runGet)
 import Data.ByteString           (ByteString, pack)
 import Data.ByteString.Lazy      (fromStrict)
 import Data.Text                 (Text, unpack, unwords)
-import Pipes (Producer, runEffect, for)
+import Pipes                     (Producer, for, runEffect)
 import Pipes.ByteString          (drawByte, stdin)
-import Pipes.Parse (StateT, parsed_)
-import System.Process            (spawnCommand)
+import Pipes.Parse               (StateT, parsed_)
+import System.Process            (callCommand)
+
 
 player :: Text
 player = "mpv"
@@ -27,18 +28,18 @@ defaultOptions = ["--no-terminal"
                  ,"--ytdl-raw-options=mark-watched=,cookie=~/Downloads/cookies"
                  ]
 
-drawBytes :: Monad m => Int -> MaybeT (StateT (Producer ByteString m x) m) ByteString
-drawBytes n = do
-  draws <- lift $ replicateM n drawByte
-  pack <$> hoistMaybe (sequence draws)
-
 readUrl :: Monad m => MaybeT (StateT (Producer ByteString m x) m) Text
 readUrl = do
   n <- runGet getInt32host . fromStrict <$> drawBytes 4
   view (key "link" . _String) <$> drawBytes (fromIntegral n)
+  where drawBytes n = do
+          draws <- lift $ replicateM n drawByte
+          pack <$> hoistMaybe (sequence draws)
 
 main :: IO ()
-main = void $ runEffect $ for urls $ void . play . options
+main = void $ runEffect $ for urls $ play . options
   where urls = parsed_ (runMaybeT readUrl) stdin
-        play = lift . spawnCommand . unpack . unwords . (player :)
+        play = lift . spawn . unpack . unwords . (player :)
         options url = defaultOptions <> ["\"" <> url <> "\""]
+        spawn = void . forkIO . callCommand
+
