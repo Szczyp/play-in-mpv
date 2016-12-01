@@ -17,20 +17,20 @@ executable play_in_mpv
   ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base
                      , attoparsec
-                     , bytestring
                      , binary
+                     , bytestring
+                     , containers
                      , errors
                      , lens
                      , lens-aeson
+                     , pipes
+                     , pipes-bytestring
+                     , pipes-parse
                      , process
                      , protolude
                      , text
                      , transformers
-                     , yaml
-                     , pipes
-                     , pipes-parse
-                     , pipes-bytestring
-                     , pipes-text
+                     , uri-bytestring
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings, NoImplicitPrelude
 
