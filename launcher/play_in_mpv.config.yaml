@@ -1,0 +1,9 @@
+player: mpv
+
+flags:
+  - no-terminal
+
+options:
+  volume: '80'
+  ytdl-format: bestvideo[height<=?1080]+bestaudio
+  ytdl-raw-options: mark-watched=,cookie=~/.cookies

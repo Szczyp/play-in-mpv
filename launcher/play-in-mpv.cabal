@@ -20,9 +20,13 @@ executable play_in_mpv
                      , binary
                      , bytestring
                      , containers
+                     , directory
                      , errors
+                     , filepath
                      , lens
                      , lens-aeson
+                     , mmorph
+                     , mtl
                      , pipes
                      , pipes-bytestring
                      , pipes-parse
@@ -31,6 +35,7 @@ executable play_in_mpv
                      , text
                      , transformers
                      , uri-bytestring
+                     , yaml
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings, NoImplicitPrelude
 

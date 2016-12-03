@@ -1,9 +1,11 @@
+{-# LANGUAGE DeriveGeneric, NamedFieldPuns #-}
 module Main where
 
-import Protolude hiding (StateT, for, hush, list, stdin, to, (&))
+import Protolude hiding (StateT, for, hush, list, stdin, to, tryIO, (&))
 
 import Control.Error.Util
-import Control.Lens                     hiding (index)
+import Control.Lens                     hiding (index, each)
+import Control.Monad.Morph
 import Control.Monad.Trans.Maybe        (MaybeT, runMaybeT)
 import Data.Aeson.Lens
 import Data.Attoparsec.ByteString       (parseOnly)
@@ -11,24 +13,46 @@ import Data.Attoparsec.ByteString.Char8 (decimal)
 import Data.Binary.Get                  (getInt32host, runGet)
 import Data.ByteString                  (pack)
 import Data.List                        (lookup)
-import Data.Map.Strict                  (fromList)
 import Data.Text                        (unwords)
-import Pipes                            (Producer, for, runEffect)
+import Data.Yaml
+import Pipes                            (Producer, for, runEffect, each)
 import Pipes.ByteString                 (drawByte, stdin)
 import Pipes.Parse                      (StateT, parsed_)
+import System.Directory
+import System.FilePath
+import System.IO.Error
 import System.Process                   (callCommand)
 import URI.ByteString
 
+import qualified Data.Map.Strict as Map
 
-player :: Text
-player = "mpv"
+newtype App a = App (ReaderT Config (ExceptT AppError Identity) a)
 
-defaultOptions :: [Text]
-defaultOptions = ["--no-terminal"
-                 ,"--volume=80"
-                 ,"--ytdl-format=\"bestvideo[height<=?1080]+bestaudio\""
-                 ,"--ytdl-raw-options=mark-watched=,cookie=~/Downloads/cookies"
-                 ]
+data AppError
+
+data Config = Config { options :: Map Text Text
+                     , flags   :: [Text]
+                     , player  :: Text }
+              deriving (Show, Generic)
+instance FromJSON Config
+
+optionsL :: Lens' Config (Map Text Text)
+optionsL = lens options (\c a -> c { options = a })
+
+flagsL :: Lens' Config [Text]
+flagsL = lens flags (\c a -> c { flags = a })
+
+playerL :: Lens' Config Text
+playerL = lens player (\c a -> c { player = a })
+
+wrapInQuotes :: (Semigroup a, IsString a) => a -> a
+wrapInQuotes str = "\"" <> str <> "\""
+
+baseOptions :: Reader Config [Text]
+baseOptions = do
+  Config {options, flags} <- ask
+  return $ map ("--" <>) flags
+    <> ifoldMap (\k v -> ["--" <> k <> " " <> wrapInQuotes v]) options
 
 readUrl :: Monad m => MaybeT (StateT (Producer ByteString m x) m) Text
 readUrl = do
@@ -38,30 +62,57 @@ readUrl = do
                       >>= hoistMaybe . sequence
                       <&> pack
 
-optionHandlers :: Map ByteString (URI -> Maybe [Text])
-optionHandlers = fromList [("www.youtube.com", youtubeOptions)]
+optionHandlers :: Map ByteString (URI -> ReaderT Config Maybe [Text])
+optionHandlers = Map.fromList [("www.youtube.com", youtubeOptions)]
 
-youtubeOptions :: URI -> Maybe [Text]
+youtubeOptions :: URI -> (ReaderT Config Maybe) [Text]
 youtubeOptions uri = do
   let query = uri ^. queryL . queryPairsL
-  list <- query & lookup "list"
-  index <- lookup "index" query >>= hush . parseOnly decimal :: Maybe Int
+  list <- lift $ lookup "list" query
+  index <- lift $ hush . parseOnly decimal =<< lookup "index" query
   let url = uri
             & queryL . queryPairsL .~ [("list", list)]
             & pathL .~ "/playlist"
             & serializeURIRef'
-  return $ defaultOptions |> "--playlist-start=" <> show (index - 1) |> toS url
+  options <- hoist generalize baseOptions
+  return $ options |> "--playlist-start=" <> show (index - (1 :: Int)) |> toS url
 
-specialOptions :: Text -> Maybe [Text]
+specialOptions :: Text -> ReaderT Config Maybe [Text]
 specialOptions url = do
-  uri <- hush $ parseURI strictURIParserOptions (toS url)
-  host <- uri ^? authorityL . _Just . authorityHostL . hostBSL
-  optionHandlers ^. at host . _Just . to ($ uri)
+  uri <- lift $ hush $ parseURI strictURIParserOptions (toS url)
+  host <- lift $ uri ^? authorityL . _Just . authorityHostL . hostBSL
+  options <- lift $ optionHandlers ^. at host
+  options uri
+
+readConfig :: ExceptT SomeException IO Config
+readConfig = do
+  dir <- syncIO $ getAppUserDataDirectory "play_in_mpv"
+  decodeFile (dir </> "play_in_mpv.config.yaml") !? throw "can't parse config"
+  where throw = toException . userError
+
+playCommand :: Text -> Reader Config Text
+playCommand url = do
+  bo <- baseOptions
+  so <- runReaderT (specialOptions url) <$> ask
+  player <- asks player
+  return $ unwords $ cons player (so ?: bo |> wrapInQuotes url)
+
+spawnPlayer :: Text -> IO ()
+spawnPlayer = void . forkIO . callCommand . toS
+
+urlStream :: MonadIO m => Producer Text m (Producer ByteString m ())
+urlStream = parsed_ (runMaybeT readUrl) stdin
+
+app :: Text -> ReaderT Config IO ()
+app = lift . spawnPlayer <=< hoist generalize . playCommand
+
+runApp :: Config -> IO ()
+runApp config = void $ runEffect $ for urlStream
+                $ lift . (`runReaderT` config) . app
 
 main :: IO ()
-main = void $ runEffect $ for urls $ play . options
-  where urls = parsed_ (runMaybeT readUrl) stdin
-        play = lift . spawn . toS . unwords . cons player
-        options url = specialOptions url ?: defaultOptions |> url
-        spawn = void . forkIO . callCommand
+main = runExceptT readConfig >>= either print runApp
 
+testStream :: MonadIO m => Producer Text m (Producer ByteString m ())
+testStream = parsed_ (runMaybeT readUrl)
+  (each ["6\NUL\NUL\NUL{\"link\":\"https://www.youtube.com/watch?v=QAUnu8AK9V0\"}"])
