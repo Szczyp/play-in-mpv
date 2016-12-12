@@ -11,19 +11,31 @@ category:            WebExtension
 build-type:          Simple
 cabal-version:       >=1.10
 
+library
+  hs-source-dirs:      lib
+  ghc-options:         -Wall
+  exposed-modules:     Preludium
+  build-depends:       base
+                     , classy-prelude
+                     , lens
+                     , protolude
+  default-language:    Haskell2010
+  default-extensions:  OverloadedStrings, NoImplicitPrelude
+
 executable play_in_mpv
   main-is:             Main.hs
-  hs-source-dirs:      src
+  hs-source-dirs:      app
   ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base
                      , attoparsec
+                     , play-in-mpv
                      , binary
                      , bytestring
                      , containers
                      , directory
                      , errors
                      , filepath
-                     , lens
+                     , flow
                      , lens-aeson
                      , mmorph
                      , mtl
@@ -31,7 +43,6 @@ executable play_in_mpv
                      , pipes-bytestring
                      , pipes-parse
                      , process
-                     , protolude
                      , text
                      , transformers
                      , uri-bytestring
