@@ -17,7 +17,10 @@ library
   exposed-modules:     Preludium
   build-depends:       base
                      , classy-prelude
+                     , errors
+                     , flow
                      , lens
+                     , mmorph
                      , protolude
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings, NoImplicitPrelude
@@ -33,11 +36,8 @@ executable play_in_mpv
                      , bytestring
                      , containers
                      , directory
-                     , errors
                      , filepath
-                     , flow
                      , lens-aeson
-                     , mmorph
                      , mtl
                      , pipes
                      , pipes-bytestring
