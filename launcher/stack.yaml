@@ -15,7 +15,7 @@
 # resolver:
 #  name: custom-snapshot
 #  location: "./custom-snapshot.yaml"
-resolver: lts-7.10
+resolver: lts-7.14
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.
@@ -67,5 +67,3 @@ extra-package-dbs: []
 
 nix:
   enable: true
-  packages: [binutils]
-  path: ["/home/qb/projects/nixpkgs/"]

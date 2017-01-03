@@ -14,6 +14,7 @@ function addButton(node) {
 }
 
 function replaceDuplicate(nodes, node) {
+  node.setAttribute("play-in-mpv", "y");
   if (nodes.length > 0 && node.href == nodes[nodes.length - 1].href) {
     nodes[nodes.length - 1] = node;
     return nodes;
@@ -39,11 +40,13 @@ function main (node) {
   node
     .getElementsByTagName("a")
     .toArray()
-    .filter(a => new RegExp("https?://(" + urls.join("|") + ")").test(a.href))
+    .filter(a => new RegExp("https?://(" + urls.join("|") + ")").test(a.href) &&
+            a.getAttribute("play-in-mpv") != "y")
     .reduce(replaceDuplicate, [])
     .forEach(addButton);
 }
 
-main(document);
+new MutationObserver(mutations => mutations.forEach(main(document)))
+  .observe(document, {childList: true, subtree: true});
 
-exportFunction(main, window, {defineAs: "main"});
+main(document);
