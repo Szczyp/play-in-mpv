@@ -67,3 +67,4 @@ extra-package-dbs: []
 
 nix:
   enable: true
+  packages: [binutils]
