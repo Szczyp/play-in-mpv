@@ -15,15 +15,13 @@ import Data.Binary.Get                  (getInt32host, runGetOrFail)
 import Data.Yaml                        (FromJSON, decodeFile)
 import Pipes                            (Producer)
 import System.Directory
-import System.Process
-    (callCommand, readCreateProcessWithExitCode, shell)
+import System.IO                        (IOMode (AppendMode), hPutStr, withFile)
+import System.Process                   (readCreateProcessWithExitCode, shell)
 import URI.ByteString
 
 import qualified Pipes
 import qualified Pipes.ByteString as PipesBS
 import qualified Pipes.Parse      as PipesParse
-import           System.IO
-    (BufferMode (NoBuffering), IOMode (AppendMode), hSetBuffering, withFile)
 
 newtype App m a = App (ReaderT Config (ExceptT AppError Identity) a)
   deriving (Functor, Applicative, Monad
@@ -148,7 +146,13 @@ playCommand url = do
 
 spawnPlayer :: Text -> ReaderT Config IO ()
 spawnPlayer = playCommand >> hoist generalize
-              >=> toS >> callCommand >> fork >> void >> lift
+              >=> toS >> spawn >> fork >> void >> lift
+  where
+    spawn cmd = do
+      (_, _, e) <- readCreateProcessWithExitCode (shell cmd) ""
+      when (e /= "") <| do
+        dir <- getAppUserDataDirectory appName
+        withFile (dir </> "stderr.log") AppendMode (`hPutStr` e)
 
 runApp :: (Text -> ReaderT Config IO ()) -> Producer ByteString IO () -> IO ()
 runApp action stream = runExceptT readConfig
@@ -159,22 +163,8 @@ runApp action stream = runExceptT readConfig
                    |> Pipes.runEffect)
                  >>= fst >> showAppError >> putStrLn
 
-appMain :: IO ()
-appMain = runApp spawnPlayer PipesBS.stdin
-
-debugMain :: IO ()
-debugMain  = runApp debug PipesBS.stdin
-  where debug link = do
-          dir <- lift <| getAppUserDataDirectory appName
-          cmd <- playCommand link |> hoist generalize
-          lift <| withFile (dir </> "play_in_mpv.log") AppendMode <| \file -> do
-            let p = hPutStrLn file
-            hSetBuffering file NoBuffering
-            p cmd
-            readCreateProcessWithExitCode (shell "mpv") "" >>= show >> p
-
 main :: IO ()
-main = appMain
+main = runApp spawnPlayer PipesBS.stdin
 
 test :: IO ()
 test = runApp printCommand testin
@@ -182,6 +172,5 @@ test = runApp printCommand testin
     printCommand = playCommand >> hoist generalize >=> putStrLn
     testin = Pipes.each
       ["6\NUL\NUL\NUL{\"link\":\"https://www.youtube.com/watch?v=QAUnu8AK9V0\"}"
-      ,"'\NUL\NUL\NUL{\"link\":\"https://youtu.be/e9weQLCSNPY\"}"
       ,"S\NUL\NUL\NUL{\"link\":\"https://www.youtube.com/playlist?list=PLH-huzMEgGWDi0v0gudmh_2Qt1F9xKjn0\"}"
       ,"g\NUL\NUL\NUL{\"link\":\"https://www.youtube.com/watch?v=ObNgutz0wMQ&list=PLH-huzMEgGWDi0v0gudmh_2Qt1F9xKjn0&index=65\"}"]
