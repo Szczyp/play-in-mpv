@@ -1,13 +1,14 @@
-{-# LANGUAGE DeriveGeneric, FlexibleContexts, GeneralizedNewtypeDeriving,
-             MultiParamTypeClasses, NamedFieldPuns, NoMonomorphismRestriction,
-             PartialTypeSignatures, ScopedTypeVariables, TypeApplications #-}
+{-# LANGUAGE DeriveGeneric, FlexibleContexts, MultiParamTypeClasses, DeriveAnyClass,
+             NamedFieldPuns, NoMonomorphismRestriction, PartialTypeSignatures,
+             ScopedTypeVariables, TypeApplications #-}
 
 module Main where
 
 import Preludium
 
-import Control.Monad.Except             (ExceptT, MonadError, runExceptT)
+import Control.Monad.Except             (ExceptT, runExceptT)
 import Control.Monad.State.Strict       (StateT)
+import Control.Monad.Trans.Maybe        (MaybeT, runMaybeT)
 import Data.Aeson.Lens
 import Data.Attoparsec.ByteString       (parseOnly)
 import Data.Attoparsec.ByteString.Char8 (decimal)
@@ -22,11 +23,6 @@ import URI.ByteString
 import qualified Pipes
 import qualified Pipes.ByteString as PipesBS
 import qualified Pipes.Parse      as PipesParse
-
-newtype App m a = App (ReaderT Config (ExceptT AppError Identity) a)
-  deriving (Functor, Applicative, Monad
-           , MonadError AppError
-           , MonadReader Config)
 
 data AppError = EmptyStreamError
               | MessageLengthParsingError Text
@@ -43,8 +39,7 @@ showAppError InvalidMessageError             = er "Invalid message"
 data Config = Config { options :: Map Text Text
                      , flags   :: [Text]
                      , player  :: Text }
-              deriving (Show, Generic)
-instance FromJSON Config
+              deriving (Show, Generic, FromJSON)
 
 optionsL :: Lens' Config (Map Text Text)
 optionsL = lens options (\c a -> c { options = a })
@@ -65,29 +60,27 @@ baseOptions = do
     <| map ("--" <>) flags
     <> ifoldMap (\k v -> ["--" <> k <> " " <> quote v]) options
 
-youtubeOptions :: URI -> ReaderT Config Maybe [Text]
+youtubeOptions :: MonadReader Config m => URI -> (MaybeT m) [Text]
 youtubeOptions uri = do
   let query = uri ^. queryL . queryPairsL
-  list <- lookup "list" query |> lift
-  let idx :: Int = (lookup "index" query >>= hush . parseOnly decimal) ?: 1
+  list <- lookup "list" query |> hoistMaybe
+  let idx :: Int = (lookup "index" query >>= parseOnly decimal >> hush) ?: 1
       url = uri
             |> queryL . queryPairsL .~ [("list", list)]
             |> pathL .~ "/playlist"
             |> serializeURIRef'
-  options <- hoist generalize baseOptions
-  options
-    `snoc` ("--playlist-start " <> toS (show (idx - 1)))
-    `snoc` quote (toS url)
-    |> return
+  baseOptions
+    |*> (`snoc` ("--playlist-start " <> toS (show (idx - 1))))
+    |*> (`snoc` quote (toS url))
 
-optionHandlers :: Map ByteString (URI -> ReaderT Config Maybe [Text])
+optionHandlers :: MonadReader Config m => Map ByteString (URI -> (MaybeT m) [Text])
 optionHandlers = mapFromList [("www.youtube.com", youtubeOptions)]
 
-specialOptions :: Text -> ReaderT Config Maybe [Text]
+specialOptions :: MonadReader Config m => Text -> (MaybeT m) [Text]
 specialOptions url = do
   uri <- url |> toS |> parseURI strictURIParserOptions |> hush
-  host <- uri ^? authorityL . _Just . authorityHostL . hostBSL |> lift
-  options <- optionHandlers ^. at host |> lift
+  host <- uri ^? authorityL . _Just . authorityHostL . hostBSL |> hoistMaybe
+  options <- optionHandlers ^. at host |> hoistMaybe
   options uri
 
 data ConfigError = ConfigPlatformError
@@ -137,22 +130,21 @@ readUrl = do
     |*> preview (key "link" . _String)
     >>= note InvalidMessageError
 
-playCommand :: Text -> Reader Config Text
+playCommand :: MonadReader Config m => Text -> m Text
 playCommand url = do
   bo <- snoc <*| baseOptions <*> pure (quote url)
-  so <- ask |*> runReaderT (specialOptions url)
+  so <- runMaybeT <| specialOptions url
   player <- asks player
   cons player (so ?: bo) |> unwords |> return
 
-spawnPlayer :: Text -> ReaderT Config IO ()
-spawnPlayer = playCommand >> hoist generalize
-              >=> toS >> spawn >> fork >> void >> lift
+spawnPlayer :: (MonadReader Config m, MonadIO m) => Text -> m ()
+spawnPlayer = playCommand >=> toS >> spawn >> fork >> void >> liftIO
   where
     spawn cmd = do
       (_, _, e) <- readCreateProcessWithExitCode (shell cmd) ""
-      when (e /= "") <| do
-        dir <- getAppUserDataDirectory appName
-        withFile (dir </> "stderr.log") AppendMode (`hPutStr` e)
+      guard (e /= "")
+      dir <- getAppUserDataDirectory appName
+      withFile (dir </> "stderr.log") AppendMode (`hPutStr` e)
 
 runApp :: (Text -> ReaderT Config IO ()) -> Producer ByteString IO () -> IO ()
 runApp action stream = runExceptT readConfig
@@ -167,9 +159,8 @@ main :: IO ()
 main = runApp spawnPlayer PipesBS.stdin
 
 test :: IO ()
-test = runApp printCommand testin
+test = runApp (playCommand >=> putStrLn) testin
   where
-    printCommand = playCommand >> hoist generalize >=> putStrLn
     testin = Pipes.each
       ["6\NUL\NUL\NUL{\"link\":\"https://www.youtube.com/watch?v=QAUnu8AK9V0\"}"
       ,"S\NUL\NUL\NUL{\"link\":\"https://www.youtube.com/playlist?list=PLH-huzMEgGWDi0v0gudmh_2Qt1F9xKjn0\"}"
