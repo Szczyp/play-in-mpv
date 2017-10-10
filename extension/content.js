@@ -1,7 +1,11 @@
 HTMLCollection.prototype.toArray = Array.prototype.slice;
 
 function sendLink(href) {
-  return () => chrome.runtime.sendMessage({"link": href});
+  return (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    chrome.runtime.sendMessage({"link": href});
+  };
 }
 
 function addButton(node) {
