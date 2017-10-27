@@ -1,22 +1,22 @@
 HTMLCollection.prototype.toArray = Array.prototype.slice;
 
-function sendLink(href) {
+function sendLink(node) {
   return (e) => {
     e.stopPropagation();
     e.preventDefault();
-    chrome.runtime.sendMessage({"link": href});
+    chrome.runtime.sendMessage({"link": node.href});
   };
 }
 
 function addButton(node) {
   let btn = document.createElement("button");
   btn.textContent = "▶";
-  btn.addEventListener("click", sendLink(node.href));
+  btn.addEventListener("click", sendLink(node));
   node.parentNode.insertBefore(btn, node);
 }
 
 function replaceDuplicate(nodes, node) {
-  node.setAttribute("play-in-mpv", "y");
+  node.setAttribute("play-in-mpv", "");
   if (nodes.length > 0 && node.href == nodes[nodes.length - 1].href) {
     nodes[nodes.length - 1] = node;
     return nodes;
@@ -42,7 +42,7 @@ function main (node) {
     .getElementsByTagName("a")
     .toArray()
     .filter(a => new RegExp("https?://(" + urls.join("|") + ")").test(a.href) &&
-            a.getAttribute("play-in-mpv") != "y")
+            !a.hasAttribute("play-in-mpv"))
     .reduce(replaceDuplicate, [])
     .forEach(addButton);
 }
