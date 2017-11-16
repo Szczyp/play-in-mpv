@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveGeneric, FlexibleContexts, MultiParamTypeClasses, DeriveAnyClass,
              NamedFieldPuns, NoMonomorphismRestriction, PartialTypeSignatures,
-             ScopedTypeVariables, TypeApplications #-}
+             ScopedTypeVariables #-}
 
 module Main where
 
