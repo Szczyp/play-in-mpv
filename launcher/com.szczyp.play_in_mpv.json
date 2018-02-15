@@ -1,7 +1,7 @@
 {
   "name": "com.szczyp.play_in_mpv",
   "description": "play in mpv",
-  "path": "/home/qb/.local/bin/play_in_mpv",
+  "path": "/run/current-system/sw/bin/play_in_mpv",
   "type": "stdio",
   "allowed_extensions": ["{85873c09-6e78-47fd-b10d-8ac0ed005f2a}"]
 }
