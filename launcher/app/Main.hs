@@ -1,11 +1,12 @@
-{-# LANGUAGE DeriveGeneric, FlexibleContexts, MultiParamTypeClasses, DeriveAnyClass,
-             NamedFieldPuns, NoMonomorphismRestriction, PartialTypeSignatures,
-             ScopedTypeVariables #-}
+{-# LANGUAGE DeriveAnyClass, DeriveGeneric, FlexibleContexts,
+             MultiParamTypeClasses, NamedFieldPuns, NoMonomorphismRestriction,
+             PartialTypeSignatures, ScopedTypeVariables #-}
 
 module Main where
 
 import Preludium
 
+import Control.Concurrent               (forkIO)
 import Control.Monad.Except             (ExceptT, runExceptT)
 import Control.Monad.State.Strict       (StateT)
 import Control.Monad.Trans.Maybe        (MaybeT, runMaybeT)
@@ -16,7 +17,7 @@ import Data.Binary.Get                  (getInt32host, runGetOrFail)
 import Data.Yaml                        (FromJSON, decodeFile)
 import Pipes                            (Producer)
 import System.Directory
-import System.IO                        (IOMode (AppendMode), hPutStr, withFile)
+import System.IO                        (IOMode (AppendMode), hPutStr)
 import System.Process                   (readCreateProcessWithExitCode, shell)
 import URI.ByteString
 
@@ -138,7 +139,7 @@ playCommand url = do
   cons player (so ?: bo) |> unwords |> return
 
 spawnPlayer :: (MonadReader Config m, MonadIO m) => Text -> m ()
-spawnPlayer = playCommand >=> toS >> spawn >> fork >> void >> liftIO
+spawnPlayer = playCommand >=> toS >> spawn >> forkIO >> void >> liftIO
   where
     spawn cmd = do
       (_, _, e) <- readCreateProcessWithExitCode (shell cmd) ""

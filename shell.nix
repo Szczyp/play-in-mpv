@@ -10,6 +10,7 @@ let
     hindent
     hasktags
     hoogle
+    stylish-haskell
     cabal2nix
   ];
 
