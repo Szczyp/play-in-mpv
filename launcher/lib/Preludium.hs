@@ -25,7 +25,6 @@ import Control.Lens               as X hiding
     , (|>)
     )
 import Control.Monad.Morph        as X
-import Data.EitherR               as X (fmapLT)
 import Flow                       as X hiding ((.>), (<.))
 import Protolude                  as X (hush, note, toS, toSL)
 

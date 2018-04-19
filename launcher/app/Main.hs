@@ -14,7 +14,7 @@ import Data.Aeson.Lens
 import Data.Attoparsec.ByteString       (parseOnly)
 import Data.Attoparsec.ByteString.Char8 (decimal)
 import Data.Binary.Get                  (getInt32host, runGetOrFail)
-import Data.Yaml                        (FromJSON, decodeFile)
+import Data.Yaml                        (FromJSON, ParseException, decodeFileEither, prettyPrintParseException)
 import Pipes                            (Producer)
 import System.Directory
 import System.IO                        (IOMode (AppendMode), hPutStr)
@@ -37,16 +37,16 @@ showAppError EmptyStreamError                = er "Empty stream"
 showAppError (MessageLengthParsingError msg) = er msg
 showAppError InvalidMessageError             = er "Invalid message"
 
-data Config = Config { options :: Map Text Text
-                     , flags   :: [Text]
+data Config = Config { options :: Maybe (Map Text Text)
+                     , flags   :: Maybe [Text]
                      , player  :: Text }
               deriving (Show, Generic, FromJSON)
 
 optionsL :: Lens' Config (Map Text Text)
-optionsL = lens options (\c a -> c { options = a })
+optionsL = lens (fromMaybe mempty . options) (\c a -> c { options = pure a })
 
 flagsL :: Lens' Config [Text]
-flagsL = lens flags (\c a -> c { flags = a })
+flagsL = lens (fromMaybe mempty . flags) (\c a -> c { flags = pure a })
 
 playerL :: Lens' Config Text
 playerL = lens player (\c a -> c { player = a })
@@ -56,7 +56,7 @@ quote str = "\"" <> str <> "\""
 
 baseOptions :: MonadReader Config m => m [Text]
 baseOptions = do
-  Config {options, flags} <- ask
+  (options, flags) <- ((,) <*| view optionsL <*> view flagsL) <*| ask
   return
     <| map ("--" <>) flags
     <> ifoldMap (\k v -> ["--" <> k <> " " <> quote v]) options
@@ -84,32 +84,21 @@ specialOptions url = do
   options <- optionHandlers ^. at host |> hoistMaybe
   options uri
 
-data ConfigError = ConfigPlatformError
-                 | ConfigFileError FilePath
-                 | ConfigParseError
-
-showConfigError :: ConfigError -> Text
-showConfigError ConfigPlatformError = "Unsupported platform"
-showConfigError (ConfigFileError dir) =
-  "Can't find config file: " <> toS (dir </> configFileName)
-showConfigError ConfigParseError = "Can't parse config"
-
 appName :: FilePath
 appName = "play_in_mpv"
 
 configFileName :: FilePath
 configFileName = "play_in_mpv.config.yaml"
 
-readConfig :: ExceptT ConfigError IO Config
+readConfig :: ExceptT ParseException IO Config
 readConfig = do
   dir <- getAppUserDataDirectory appName
-         |> syncIO
-         |> fmapLT (const ConfigPlatformError)
-  (dir </> configFileName
-   |> decodeFile
-   |> syncIO
-   |> fmapLT (const <| ConfigFileError dir))
-    >>= failWith ConfigParseError
+         |> liftIO
+  config <- dir </> configFileName
+            |> decodeFileEither
+            |> liftIO
+  config
+    |> hoistEither
 
 drawBytes :: Monad m
           => Int
@@ -149,7 +138,7 @@ spawnPlayer = playCommand >=> toS >> spawn >> forkIO >> void >> liftIO
 
 runApp :: (Text -> ReaderT Config IO ()) -> Producer ByteString IO () -> IO ()
 runApp action stream = runExceptT readConfig
-                       >>= either (putStrLn . showConfigError) app
+                       >>= either (putStrLn . toS . prettyPrintParseException) app
   where
     app config = (action >> (`runReaderT` config) >> lift
                    |> Pipes.for (PipesParse.parsed (runExceptT readUrl) stream)
