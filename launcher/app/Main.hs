@@ -65,6 +65,7 @@ youtubeOptions :: MonadReader Config m => URI -> (MaybeT m) [Text]
 youtubeOptions uri = do
   let query = uri ^. queryL . queryPairsL
   list <- lookup "list" query |> hoistMaybe
+  guard (list /= "WL")
   let idx :: Int = (lookup "index" query >>= parseOnly decimal >> hush) ?: 1
       url = uri
             |> queryL . queryPairsL .~ [("list", list)]
