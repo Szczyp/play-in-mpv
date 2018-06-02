@@ -6,7 +6,7 @@
 }:
 mkDerivation {
   pname = "play-in-mpv";
-  version = "1.4.3";
+  version = "1.4.4";
   src = ./launcher;
   isLibrary = true;
   isExecutable = true;
