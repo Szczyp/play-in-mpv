@@ -72,7 +72,7 @@ youtubeOptions uri = do
             |> pathL .~ "/playlist"
             |> serializeURIRef'
   baseOptions
-    |*> (`snoc` ("--playlist-start " <> toS (show (idx - 1))))
+    |*> (`snoc` ("--playlist-start " <> toS (show (idx - 2))))
     |*> (`snoc` quote (toS url))
 
 optionHandlers :: MonadReader Config m => Map ByteString (URI -> (MaybeT m) [Text])
