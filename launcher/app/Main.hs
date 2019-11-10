@@ -12,7 +12,7 @@ import Control.Monad.State.Strict       (StateT)
 import Control.Monad.Trans.Maybe        (MaybeT, runMaybeT)
 import Data.Aeson.Lens
 import Data.Attoparsec.ByteString       (parseOnly)
-import Data.Attoparsec.ByteString.Char8 (decimal)
+import Data.Attoparsec.ByteString.Char8 (decimal, takeByteString)
 import Data.Binary.Get                  (getInt32host, runGetOrFail)
 import Data.Yaml                        (FromJSON, ParseException, decodeFileEither, prettyPrintParseException)
 import Pipes                            (Producer)
@@ -61,8 +61,20 @@ baseOptions = do
     <| map ("--" <>) flags
     <> ifoldMap (\k v -> ["--" <> k <> " " <> quote v]) options
 
-youtubeOptions :: MonadReader Config m => URI -> (MaybeT m) [Text]
-youtubeOptions uri = do
+youtubeEmbed :: MonadReader Config m => URI -> (MaybeT m) [Text]
+youtubeEmbed uri = do
+  vid <- uri ^. pathL
+         |> parseOnly ("/embed/" *> takeByteString)
+         |> hush
+  let url = uri
+            |> pathL .~ "/watch"
+            |> queryL . queryPairsL .~ [("v", vid)]
+            |> serializeURIRef'
+  baseOptions
+    |*> (`snoc` quote (toS url))
+
+youtubePlayList :: MonadReader Config m => URI -> (MaybeT m) [Text]
+youtubePlayList uri = do
   let query = uri ^. queryL . queryPairsL
   list <- lookup "list" query |> hoistMaybe
   guard (list /= "WL")
@@ -75,15 +87,15 @@ youtubeOptions uri = do
     |*> (`snoc` ("--playlist-start " <> toS (show (idx - 1))))
     |*> (`snoc` quote (toS url))
 
-optionHandlers :: MonadReader Config m => Map ByteString (URI -> (MaybeT m) [Text])
-optionHandlers = mapFromList [("www.youtube.com", youtubeOptions)]
+optionHandlers :: MonadReader Config m => Map ByteString [(URI -> (MaybeT m) [Text])]
+optionHandlers = mapFromList [("www.youtube.com", [youtubePlayList, youtubeEmbed])]
 
 specialOptions :: MonadReader Config m => Text -> (MaybeT m) [Text]
 specialOptions url = do
   uri <- url |> toS |> parseURI strictURIParserOptions |> hush
   host <- uri ^? authorityL . _Just . authorityHostL . hostBSL |> hoistMaybe
-  options <- optionHandlers ^. at host |> hoistMaybe
-  options uri
+  handlers <- optionHandlers ^. at host |> hoistMaybe
+  handlers |*> (<| uri) |> asum
 
 appName :: FilePath
 appName = "play_in_mpv"
@@ -154,5 +166,6 @@ test = runApp (playCommand >=> putStrLn) testin
   where
     testin = Pipes.each
       ["6\NUL\NUL\NUL{\"link\":\"https://www.youtube.com/watch?v=QAUnu8AK9V0\"}"
+      ,"N\NUL\NUL\NUL{\"link\":\"https://www.youtube.com/embed/r3oWOOiBt1g?autoplay=1&auto_play=true\"}"
       ,"S\NUL\NUL\NUL{\"link\":\"https://www.youtube.com/playlist?list=PLH-huzMEgGWDi0v0gudmh_2Qt1F9xKjn0\"}"
       ,"g\NUL\NUL\NUL{\"link\":\"https://www.youtube.com/watch?v=ObNgutz0wMQ&list=PLH-huzMEgGWDi0v0gudmh_2Qt1F9xKjn0&index=65\"}"]

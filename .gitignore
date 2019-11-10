@@ -1,3 +1,5 @@
 /extension/web-ext-artifacts/
 /launcher/TAGS
 /launcher/dist/
+.envrc
+result

@@ -1,8 +1,8 @@
 name:                play-in-mpv
-version:             1.4.4
-synopsis:            Initial project template from stack
+version:             1.4.5
+synopsis:            Spawns player for links in stdin.
 description:         Please see README.md
-homepage:            https://github.com/Szczyp/play-in-mpv#readme
+homepage:            https://github.com/Szczyp/play-in-mpv
 license:             GPL-3
 author:              Szczyp
 maintainer:          qb@szczyp.com
