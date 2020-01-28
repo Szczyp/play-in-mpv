@@ -59,7 +59,7 @@ baseOptions = do
   (options, flags) <- ((,) <*| view optionsL <*> view flagsL) <*| ask
   return
     <| map ("--" <>) flags
-    <> ifoldMap (\k v -> ["--" <> k <> " " <> quote v]) options
+    <> ifoldMap (\k v -> ["--" <> k <> "=" <> quote v]) options
 
 youtubeEmbed :: MonadReader Config m => URI -> (MaybeT m) [Text]
 youtubeEmbed uri = do
@@ -84,7 +84,7 @@ youtubePlayList uri = do
             |> pathL .~ "/playlist"
             |> serializeURIRef'
   baseOptions
-    |*> (`snoc` ("--playlist-start " <> toS (show (idx - 1))))
+    |*> (`snoc` ("--playlist-start=" <> toS (show (idx - 1))))
     |*> (`snoc` quote (toS url))
 
 optionHandlers :: MonadReader Config m => Map ByteString [(URI -> (MaybeT m) [Text])]
