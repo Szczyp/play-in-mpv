@@ -1,7 +1,1 @@
-/bower_components/
-/node_modules/
-/.pulp-cache/
-/output/
-/.psc*
-/.psa*
-/src/.webpack.js
+/web-ext-artifacts
