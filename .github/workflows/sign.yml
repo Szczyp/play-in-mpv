@@ -11,23 +11,19 @@ jobs:
       - name: "Checkout"
         uses: actions/checkout@v1
 
-      - name: "web-ext build"
-        id: web-ext-build
-        uses: Szczyp/action-web-ext@v1
+      - name: "Setup Node"
+        uses: actions/setup-node@v1
         with:
-          cmd: build
-          source: extension
+          node-version: "12.x"
 
-      - name: "web-ext sign"
+      - name: "Sign"
         id: web-ext-sign
-        uses: Szczyp/action-web-ext@v1
+        uses: Szczyp/web-ext-sign@master
         with:
-          cmd: sign
-          source: ${{ steps.web-ext-build.outputs.target }}
-          channel: unlisted
-          id: "{85873c09-6e78-47fd-b10d-8ac0ed005f2a}"
           apiKey: ${{ secrets.AMO_SIGN_KEY }}
           apiSecret: ${{ secrets.AMO_SIGN_SECRET }}
+          sourceDir: "extension"
+          ignoreFiles: "*.nix"
 
       - name: "Create Release"
         uses: softprops/action-gh-release@v1
