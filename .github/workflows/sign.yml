@@ -18,7 +18,7 @@ jobs:
 
       - name: "Sign"
         id: web-ext-sign
-        uses: Szczyp/web-ext-sign@master
+        uses: Szczyp/web-ext-sign@v1
         with:
           apiKey: ${{ secrets.AMO_SIGN_KEY }}
           apiSecret: ${{ secrets.AMO_SIGN_SECRET }}
