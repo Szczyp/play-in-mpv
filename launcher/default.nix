@@ -5,20 +5,23 @@ let
 
   src = nix-gitignore.gitignoreSource [] ./.;
 
-  haskellPackages = haskell.packages.ghc865.override {
+  hp = haskellPackages.override {
     overrides = self: super: {
       ${name} = self.callCabal2nix name src {};
     };
   };
 
-  drv = haskell.lib.justStaticExecutables haskellPackages.${name};
+  ghcide = import (fetchTarball {
+    url = "https://github.com/hercules-ci/ghcide-nix/archive/c940edd61eedba6750671fc142c9422cced73528.tar.gz";
+    sha256 = "01f2x5sgncd468h99w3mpkkb1203akachm12czmiwbvgishf7dwp";
+  }) {};
 
-  ghcide = (import (fetchTarball "https://github.com/hercules-ci/ghcide-nix/tarball/master") {}).ghcide-ghc865;
+  drv = haskell.lib.justStaticExecutables hp.${name};
 
-  shell = haskellPackages.shellFor {
+  shell = hp.shellFor {
     withHoogle = true;
     packages = p: [ p.${name} ];
-    buildInputs = with haskellPackages; [
+    buildInputs = with hp; [
       cabal-install
       apply-refact
       hindent
@@ -26,7 +29,8 @@ let
       stylish-haskell
       hasktags
       hoogle
-      ghcide
+      cabal2nix
+      ghcide.ghcide-ghc865
     ];
   };
 in
