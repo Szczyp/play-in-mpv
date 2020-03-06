@@ -1,1 +1,1 @@
-import ./launcher {}
+import ./launcher
